@@ -2,6 +2,8 @@ package net.rainmore
 
 import java.time.LocalDateTime
 
+import akka.actor.Actor.Receive
+import akka.contrib.pattern.Aggregator
 import akka.event.Logging
 import akka.routing.RoundRobinPool
 import com.typesafe.config.{ConfigFactory, Config}
@@ -9,7 +11,7 @@ import com.typesafe.scalalogging.LazyLogging
 import net.rainmore.MessageAggregator.Push
 import org.jfairy.Fairy
 import scala.collection
-import akka.actor.{ActorLogging, ActorRef, ActorSystem, Props, Actor, Inbox}
+import akka.actor._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -80,7 +82,6 @@ object MessageCollector {
 }
 
 class MessageCollector extends Actor with ActorLogging {
-    val log = Logging(context.system, this)
 
     def receive = {
         case MessageCollector.Collect => {
@@ -99,8 +100,19 @@ object MessageAggregator {
     case class Push(pushMessage: PushMessage)
 }
 
-class MessageAggregator extends Actor with ActorLogging {
+class MessageAggregator extends Actor with Aggregator with ActorLogging {
     val publishers = context.actorOf(Props[MessagePublisher].withRouter(RoundRobinPool(3)))
+
+
+
+
+    override def expectOnce(fn: Actor.Receive): Actor.Receive = super.expectOnce(fn)
+
+    override def expect(fn: Actor.Receive): Actor.Receive = super.expect(fn)
+
+    override def unexpect(fn: Receive): Boolean = super.unexpect(fn)
+
+    override def handleMessage(msg: Any): Boolean = super.handleMessage(msg)
 
     def receive = {
         case Push(pushMessage) => {
