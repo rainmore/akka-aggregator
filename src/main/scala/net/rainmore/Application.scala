@@ -17,9 +17,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.Random
 
-case object Greet
-case class WhoToGreet(who: String)
-case class Greeting(message: String)
 case object PushMessageTimeout
 
 case class MessageId (tenant: String, userId: Int)
@@ -45,6 +42,7 @@ class MessageSender extends Actor with ActorLogging {
         case MessageSender.Send => {
             MessageCollector.buffer.+=(generateMessage)
         }
+        case _ => log.error("invalid message in MessageSender")
     }
 
     def generateMessage: SimpleMessage = {
@@ -52,37 +50,39 @@ class MessageSender extends Actor with ActorLogging {
         val userId: Int = Random.shuffle(MessageSender.tenants.get(tenant).get).head
         val message: String = MessageSender.fairy.textProducer().sentence()
         val st = "tenant: %s, userId: %s, message: %s".format(tenant, userId, message)
-        log.info(st)
-        println(st)
+//        log.info(st)
         SimpleMessage(new MessageId(tenant, userId), message)
     }
 }
 
 object MessageCollector {
 
-    val buffer: mutable.ListBuffer[SimpleMessage] = new ListBuffer[SimpleMessage]
+    val buffer: mutable.Buffer[SimpleMessage] = new ListBuffer[SimpleMessage]
 
     object Collect
+    case class Push(pushMessages: List[PushMessage])
 }
 
 class MessageCollector extends Actor with ActorLogging {
 
-    val aggregator = context.actorOf(Props[MessageAggregationProcessor])
+    val aggregator = context.actorOf(Props[MessageAggregationProcessor], "MessageAggregationProcessor")
 
     def receive = {
         case MessageCollector.Collect => {
             val s = MessageCollector.buffer.size
             val st = "messages size: %s".format(s)
-            println(st)
+            log.info(st)
             val size = {
-                if (s >= 100) 100
+                if (s >= 10) 10
                 else s
             }
 
-            val list = MessageCollector.buffer.splitAt(size).asInstanceOf[Iterator[SimpleMessage]]
-            MessageCollector.buffer.remove(size)
-
-            aggregator ! MessageAggregationProcessor.Sum(list)
+            if (s > 0) {
+                val list = MessageCollector.buffer.slice(0, size).toList
+                MessageCollector.buffer.remove(0, size)
+                //            val list = MessageCollector.buffer.splitAt(size).productIterator.toList.asInstanceOf[Iterator[SimpleMessage]]
+                aggregator ! MessageAggregationProcessor.Sum(list)
+            }
 
         }
         case _ => log.error("invalid message in MessageCollector")
@@ -92,67 +92,76 @@ class MessageCollector extends Actor with ActorLogging {
 
 object MessageAggregationProcessor {
 
-    case class Sum(simpleMessages: Iterator[SimpleMessage])
-    case object CantUnderstand
+    case class Sum(simpleMessages: List[SimpleMessage])
 }
 
 class MessageAggregationProcessor extends Actor with Aggregator with ActorLogging {
-    import context._
 
-    val publishers = context.actorOf(Props[MessagePublisher].withRouter(RoundRobinPool(3)))
-
+    val publishers = context.actorOf(Props[MessagePublisher].withRouter(RoundRobinPool(3)), "MessagePublisher")
 //    override def expectOnce(fn: Actor.Receive): Actor.Receive = super.expectOnce(fn)
     expectOnce {
-        case MessageAggregationProcessor.Sum(simpleMessages) =>
-            new MessageAggregator(sender(), simpleMessage)
-        case _ ⇒
-            sender() ! MessageAggregationProcessor.CantUnderstand
+        case MessageAggregationProcessor.Sum(list) => {
+            log.info("simpleMessage: {}", list)
+            new MessageAggregator(sender(), list)
+        }
+        case MessageCollector.Push(pushMessage) => publishers ! MessagePublisher.Push(pushMessage)
+        case _ => log.error("1111 invalid message in MessageAggregationProcessor")
 //            context.stop(self)
     }
 
+    expect {
+        case MessageCollector.Push(pushMessage) => publishers ! MessagePublisher.Push(pushMessage)
+        case _ => log.error("2222 invalid message in MessageAggregationProcessor")
+    }
+
     class MessageAggregator(originalSender: ActorRef,
-                            simpleMessage: SimpleMessage) {
+                            simpleMessages: List[SimpleMessage]) {
 
-        val results1: Map[MessageId, mutable.ArrayBuffer[String]] = mutable.Map.empty()
+        val results1 = new mutable.HashMap[MessageId, List[String]]()
 
-        collect
+        collect()
 
 //        context.system.scheduler.scheduleOnce(1.second, self, PushMessageTimeout)
-        context.system.scheduler.schedule(10.seconds, 10.seconds, self, PushMessageTimeout)
+        context.system.scheduler.schedule(10.second, 10.second, self, PushMessageTimeout)
 
         expect {
             case PushMessageTimeout => push
         }
 
-        def push: Unit = {
-            val pushMessages = results1.get(simpleMessage.id)
-            results1.-(simpleMessage.id)
-            if (pushMessages.isDefined) {
-                originalSender ! MessagePublisher.Push(new PushMessage(simpleMessage.id, pushMessages.get.toList))
-            }
+        def push(): Unit = {
+            val list = results1.map(i => {
+                new PushMessage(i._1, i._2)
+            }).toList
+            results1.clear()
+            originalSender ! MessageCollector.Push(list)
         }
 
         def collect(): Unit = {
-            if (!results1.contains(simpleMessage.id)) {
-                results1.+(simpleMessage.id -> mutable.ArrayBuffer.empty[String])
-            }
-            //TODO: to understand what it does
-//            context.stop(self)
-            results1.get(simpleMessage.id).get.+(simpleMessage.message)
+            simpleMessages.foreach(simpleMessage => {
+                if (!results1.contains(simpleMessage.id)) {
+                    results1.put(simpleMessage.id, List())
+                }
+                //TODO: to understand what it does
+                //            context.stop(self)
+                results1.get(simpleMessage.id).get.+(simpleMessage.message)
+            })
         }
     }
 }
 
 object MessagePublisher {
 
-    case class Push(pushMessage: PushMessage)
+    case class Push(pushMessages: List[PushMessage])
 }
 
 class MessagePublisher extends Actor with ActorLogging {
 
     def receive = {
-        case MessagePublisher.Push(pushMessage) =>
-            println("===> %s:%s [%s] is pushed", pushMessage.id.tenant, pushMessage.id.userId, pushMessage.messages.mkString(", "))
+        case MessagePublisher.Push(pushMessages) => {
+            pushMessages.foreach(pushMessage => log.info("===> %s:%s [%s] is pushed", pushMessage.id.tenant, pushMessage.id.userId, pushMessage.messages.mkString(", ")))
+
+        }
+
     }
 }
 
@@ -170,41 +179,13 @@ object Application extends App  with LazyLogging {
 //    val sender3 = system.actorOf(Props[MessageSender], "sender3")
 //    val sender4 = system.actorOf(Props[MessageSender], "sender4")
 
-    val collector = system.actorOf(Props[MessageCollector])
-    val publisher = system.actorOf(Props[MessagePublisher])
+    val collector = system.actorOf(Props[MessageCollector], "MessageCollector")
 
     system.scheduler.schedule(0.seconds, 1000.milliseconds, sender1, MessageSender.Send)
 //    system.scheduler.schedule(0.seconds, 800.milliseconds, sender2, MessageSender.Send)
 //    system.scheduler.schedule(0.seconds, 900.milliseconds, sender3, MessageSender.Send)
 //    system.scheduler.schedule(0.seconds, 1100.milliseconds, sender4, MessageSender.Send)
     system.scheduler.schedule(5.seconds, 5.seconds, collector, MessageCollector.Collect)
-
-//    // Create the 'greeter' actor
-//    val greeter = system.actorOf(Props[Greeter], "greeter")
-//
-//    // Create an "actor-in-a-box"
-//    val inbox = Inbox.create(system)
-//
-//    // Tell the 'greeter' to change its 'greeting' message
-//    greeter.tell(WhoToGreet("akka"), ActorRef.noSender)
-//
-//    // Ask the 'greeter for the latest 'greeting'
-//    // Reply should go to the "actor-in-a-box"
-//    inbox.send(greeter, Greet)
-//
-//    // Wait 5 seconds for the reply with the 'greeting' message
-//    val Greeting(message1) = inbox.receive(5.seconds)
-//    println(s"Greeting: $message1")
-//
-//    // Change the greeting and ask for it again
-//    greeter.tell(WhoToGreet("typesafe"), ActorRef.noSender)
-//    inbox.send(greeter, Greet)
-//    val Greeting(message2) = inbox.receive(5.seconds)
-//    println(s"Greeting: $message2")
-//
-//    val greetPrinter = system.actorOf(Props[GreetPrinter])
-//    // after zero seconds, send a Greet message every second to the greeter with a sender of the greetPrinter
-//    system.scheduler.schedule(0.seconds, 1.second, greeter, Greet)(system.dispatcher, greetPrinter)
 
 }
 
