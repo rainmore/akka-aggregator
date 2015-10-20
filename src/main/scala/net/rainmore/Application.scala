@@ -22,29 +22,11 @@ case class WhoToGreet(who: String)
 case class Greeting(message: String)
 case object PushMessageTimeout
 
-
-class Greeter extends Actor {
-    var greeting = ""
-
-    def receive = {
-        case WhoToGreet(who) => greeting = s"hello, $who"
-        case Greet           => sender ! Greeting(greeting) // Send the current greeting back to the sender
-    }
-}
-
-// prints a greeting
-class GreetPrinter extends Actor {
-    def receive = {
-        case Greeting(message) => println(message)
-    }
-}
-
 case class MessageId (tenant: String, userId: Int)
 case class SimpleMessage (id: MessageId, message: String)
 case class PushMessage (id: MessageId, messages: List[String])
 
 object MessageSender {
-
     val fairy = Fairy.create()
 
     private def userIds = {
@@ -78,19 +60,30 @@ class MessageSender extends Actor with ActorLogging {
 
 object MessageCollector {
 
-    val buffer: mutable.ListBuffer[SimpleMessage] = new ListBuffer()
+    val buffer: mutable.ListBuffer[SimpleMessage] = new ListBuffer[SimpleMessage]
 
     object Collect
 }
 
 class MessageCollector extends Actor with ActorLogging {
 
+    val aggregator = context.actorOf(Props[MessageAggregationProcessor])
+
     def receive = {
         case MessageCollector.Collect => {
-            val st = "messages size: %s".format(MessageCollector.buffer.size)
-//            println(st)
-            log.info(st)
-//            workers ! MessageSender.Send
+            val s = MessageCollector.buffer.size
+            val st = "messages size: %s".format(s)
+            println(st)
+            val size = {
+                if (s >= 100) 100
+                else s
+            }
+
+            val list = MessageCollector.buffer.splitAt(size).asInstanceOf[Iterator[SimpleMessage]]
+            MessageCollector.buffer.remove(size)
+
+            aggregator ! MessageAggregationProcessor.Sum(list)
+
         }
         case _ => log.error("invalid message in MessageCollector")
     }
@@ -99,8 +92,7 @@ class MessageCollector extends Actor with ActorLogging {
 
 object MessageAggregationProcessor {
 
-    case class Push(pushMessage: PushMessage)
-    case class Sum(simpleMessage: SimpleMessage)
+    case class Sum(simpleMessages: Iterator[SimpleMessage])
     case object CantUnderstand
 }
 
@@ -111,11 +103,11 @@ class MessageAggregationProcessor extends Actor with Aggregator with ActorLoggin
 
 //    override def expectOnce(fn: Actor.Receive): Actor.Receive = super.expectOnce(fn)
     expectOnce {
-        case MessageAggregationProcessor.Sum(simpleMessage) =>
+        case MessageAggregationProcessor.Sum(simpleMessages) =>
             new MessageAggregator(sender(), simpleMessage)
         case _ ⇒
             sender() ! MessageAggregationProcessor.CantUnderstand
-            context.stop(self)
+//            context.stop(self)
     }
 
     class MessageAggregator(originalSender: ActorRef,
@@ -125,11 +117,11 @@ class MessageAggregationProcessor extends Actor with Aggregator with ActorLoggin
 
         collect
 
-        context.system.scheduler.scheduleOnce(1.second, self, PushMessageTimeout)
-//        context.system.scheduler.schedule(10.second, 10.second, self, PushMessageTimeout)
+//        context.system.scheduler.scheduleOnce(1.second, self, PushMessageTimeout)
+        context.system.scheduler.schedule(10.seconds, 10.seconds, self, PushMessageTimeout)
 
         expect {
-            case PushMessageTimeout ⇒ push
+            case PushMessageTimeout => push
         }
 
         def push: Unit = {
@@ -160,7 +152,7 @@ class MessagePublisher extends Actor with ActorLogging {
 
     def receive = {
         case MessagePublisher.Push(pushMessage) =>
-            println("%s:%s [%s]", pushMessage.tenant, pushMessage.userId, pushMessage.messages.mkString(", "))
+            println("===> %s:%s [%s] is pushed", pushMessage.id.tenant, pushMessage.id.userId, pushMessage.messages.mkString(", "))
     }
 }
 
@@ -179,7 +171,6 @@ object Application extends App  with LazyLogging {
 //    val sender4 = system.actorOf(Props[MessageSender], "sender4")
 
     val collector = system.actorOf(Props[MessageCollector])
-    val aggregator = system.actorOf(Props[MessageAggregationProcessor])
     val publisher = system.actorOf(Props[MessagePublisher])
 
     system.scheduler.schedule(0.seconds, 1000.milliseconds, sender1, MessageSender.Send)
