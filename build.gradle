@@ -1,6 +1,5 @@
-
 plugins {
-    id 'com.github.johnrengelman.shadow' version '1.2.2'
+    id "us.kirchmeier.capsule" version "1.0.1"
 }
 
 description = 'Aggregation'
@@ -8,12 +7,9 @@ group = 'net.rainmore'
 version = '1.0'
 
 
-//apply plugin: 'java'
 apply plugin: 'scala'
 apply plugin: 'application'
 apply plugin: 'idea'
-apply plugin: 'com.github.johnrengelman.shadow'
-//apply plugin: 'shadow'
 
 idea {
     project {
@@ -60,17 +56,9 @@ dependencies {
     testCompile group: 'org.jfairy',        name: 'jfairy',                       version: '0.3.0'
 }
 
-    compile 'log4j:log4j:1.2.17'
-
-//    compile group: 'org.apache.logging.log4j', name:'log4j-core',   version: '2.4.1'
-//    compile group: 'org.apache.logging.log4j', name:'log4j-api',   version: '2.4.1'
-//    compile group: 'org.apache.logging.log4j', name:'log4j-slf4j-impl',   version: '2.4.1'
-
-
 tasks.withType(ScalaCompile) {
     scalaCompileOptions.useAnt = false
 }
-
 
 ext.javaLintArgs = [
         '-Xlint:all',
@@ -83,57 +71,33 @@ ext.sharedManifest = manifest {
     attributes \
         'Implementation-Title':   project.name,
         'Implementation-Version': project.version,
-//        'Built-JDK':  System.getProperty('java.version'),
-//        'Built-By':   System.getProperty('user.name'),
+        'Built-JDK':  System.getProperty('java.version'),
+        'Built-By':   System.getProperty('user.name'),
         'Main-Class': project.mainClassName,
         'Built-Date': new Date()
 }
 
-task fatJar(type: Jar) {
+task fatCapsule(type: FatCapsule) {
     group 'Build'
-    description = 'Creates a jar containing all compile and transitive runtime dependencies.'
-    classifier = 'fat'
-    manifest = project.manifest { from sharedManifest }
-    from sourceSets.main.output
-    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
-}
-
-
-task sourceJar(type: Jar) {
-    group 'Build'
-    classifier = 'sources'
-    from sourceSets.main.allSource
+//    manifest = project.manifest { from sharedManifest }
+    applicationClass project.mainClassName
 }
 
 artifacts {
-    archives shadowJar
+    archives fatCapsule
 }
 
 jar {
     manifest = project.manifest { from sharedManifest }
-//    into('lib') {
-//        from configurations.comgpile
-//        from configurations.runtime
-//    }
-}
-
-shadowJar {
-    manifest = project.manifest { from sharedManifest }
-//    into('lib') {
-//        from configurations.compile
-//        from configurations.runtime
-//    }
-}
-
-
-ext.sclArt = { String artifactId ->
-    sprintf('%s_%s', artifactId, config.scala.branch)
+    into('lib') {
+        from configurations.compile
+        from configurations.runtime
+    }
 }
 
 // Java/Scala cross-compilation
-sourceSets.main.scala.srcDirs += sourceSets.main.java.srcDirs
-sourceSets.main.java.srcDirs = []
-
+//sourceSets.main.scala.srcDirs += sourceSets.main.java.srcDirs
+//sourceSets.main.java.srcDirs = []
 
 allprojects {
     tasks.withType(ScalaCompile) {
