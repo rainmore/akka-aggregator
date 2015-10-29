@@ -48,14 +48,15 @@ object Main extends App with LazyLogging {
     }
 
     cluster.registerOnMemberUp {
+        import scala.concurrent.ExecutionContext.Implicits.global
         logger.info("Start member")
-        initJobReceptionist()
+
         val name = classOf[JobReceptionist].getSimpleName
-        system.actorSelection(s"$name").resolveOne(5.seconds).value match {
-            case None => {
-                logger.info("Master node not exists")
+        system.actorSelection(s"/user/$name").resolveOne(5.seconds).onComplete {
+            case Success(actor) => {
+                logger.info("Master node exists")
             }
-            case Some(a) => logger.info("Master node exists: {}", a)
+            case Failure(ex) => initJobReceptionist()
         }
     }
 

@@ -44,6 +44,7 @@ dependencies {
     compile group: 'com.typesafe.akka', name: 'akka-contrib_2.11', version: '2.4.0'
     compile group: 'com.typesafe.akka', name: 'akka-remote_2.11',  version: '2.4.0'
     compile group: 'com.typesafe.akka', name: 'akka-cluster_2.11', version: '2.4.0'
+    compile group: 'com.typesafe.akka', name: 'akka-cluster-tools_2.11', version: '2.4.0'
 
     compile group: 'org.slf4j',                  name: 'slf4j-api',            version: '1.7.+'
     compile group: 'ch.qos.logback',             name: 'logback-classic',      version: '1.1.3'
