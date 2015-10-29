@@ -89,10 +89,6 @@ artifacts {
 
 jar {
     manifest = project.manifest { from sharedManifest }
-    into('lib') {
-        from configurations.compile
-        from configurations.runtime
-    }
 }
 
 // Java/Scala cross-compilation
