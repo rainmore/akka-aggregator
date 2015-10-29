@@ -1,7 +1,9 @@
 package net.rainmore
 
+import scala.util.Failure
+import scala.util.Success
 import com.typesafe.config.ConfigFactory
-import akka.actor.{Props, ActorSystem}
+import akka.actor.{ActorSelection, Props, ActorSystem}
 import akka.cluster.Cluster
 
 import com.typesafe.scalalogging.LazyLogging
@@ -13,6 +15,7 @@ import scala.concurrent.Await
 import scala.util.Try
 
 object Main extends App with LazyLogging {
+
     val config = ConfigFactory.load()
 
     val system = ActorSystem("clusters", config)
@@ -22,16 +25,6 @@ object Main extends App with LazyLogging {
 
     // register the node listener
     system.actorOf(Props(new ClusterListener), "cluster-listener")
-
-    if(system.settings.config.getStringList("akka.cluster.roles").contains("master")) {
-        cluster.registerOnMemberUp {
-            val receptionist = system.actorOf(Props[JobReceptionist], "receptionist")
-            println("Master node is ready.")
-
-            val text = List("this is a test", "of some very naive word counting", "but what can you say", "it is what it is")
-            receptionist ! JobRequest("the first job", (1 to 100000).flatMap(i => text ++ text).toList)
-        }
-    }
 
     cluster.registerOnMemberRemoved {
 
@@ -54,4 +47,30 @@ object Main extends App with LazyLogging {
         }.start()
     }
 
+    cluster.registerOnMemberUp {
+        logger.info("Start member")
+        initJobReceptionist()
+        val name = classOf[JobReceptionist].getSimpleName
+        system.actorSelection(s"$name").resolveOne(5.seconds).value match {
+            case None => {
+                logger.info("Master node not exists")
+            }
+            case Some(a) => logger.info("Master node exists: {}", a)
+        }
+    }
+
+    private def initJobReceptionist(): Unit = {
+        val name = classOf[JobReceptionist].getSimpleName
+
+        val receptionist = system.actorOf(Props[JobReceptionist], name)
+        logger.info("Master node is ready.{}", receptionist)
+
+        val text = List("this is a test", "of some very naive word counting", "but what can you say", "it is what it is")
+        receptionist ! JobRequest("the first job", (1 to 100000).flatMap(i => text ++ text).toList)
+
+        // onComplete http://stackoverflow.com/questions/26541784/how-select-akka-actor-with-actorselection?answertab=votes#tab-top
+        // people said it will on different thread
+        // just comment it out and maybe use later
+//        system.actorSelection(name).resolveOne(5.seconds).onComplete {
+    }
 }
