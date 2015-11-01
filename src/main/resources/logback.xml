@@ -4,7 +4,10 @@
         <target>System.out</target>
         <encoder>
             <!--<pattern>%date{MM/dd HH:mm:ss} %-6level[%logger{0}]: %msg%n</pattern>-->
-            <pattern>%-6level[%logger{0}]: %msg%n</pattern>
+            <!--<pattern>%date{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %level %logger:%line - %message%n</pattern>-->
+            <!--<pattern>daemon + ': [%thread] %level %logger:%line - %message</pattern>-->
+            <pattern>%date{yyyy-MM-dd HH:mm:ss.SSS} %gray([%thread]) %highlight(%level) %cyan(%logger{32}) : %green(%line) - %message%n</pattern>
+            <!--<pattern>%-6level[%logger{0}]: %msg%n</pattern>-->
         </encoder>
     </appender>
 
