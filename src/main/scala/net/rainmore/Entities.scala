@@ -14,5 +14,7 @@ trait Message {
     val certificates: Set[Certificate]
     val tokens: Set[Token]
 }
-case class Notification(title: String, body: String, certificates: Set[Certificate],  tokens: Set[Token]) extends Message
-case class Sqs(id: Id, title: String, body: String, certificates: Set[Certificate],  tokens: Set[Token]) extends Message
+case class Notification(title: String, body: String, certificates: Set[Certificate], tokens: Set[Token]) extends Message
+case class Sqs(id: Id, title: String, body: String, certificates: Set[Certificate],  tokens: Set[Token]) extends Message {
+    def toNotification = new Notification(title, body, certificates, tokens)
+}

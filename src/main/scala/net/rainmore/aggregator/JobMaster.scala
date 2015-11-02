@@ -13,7 +13,7 @@ object JobMaster {
     case class Enlist(worker: ActorRef)
 
     case object NextTask
-    case class TaskResult(map: Map[Id, Set[Notification]])
+    case class TaskResult(map: Map[Id, Vector[Notification]])
 
     case object Start
     case object MergeResults
