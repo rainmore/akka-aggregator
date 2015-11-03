@@ -24,7 +24,7 @@ class MasterLookupProxy(path: String) extends Actor with ActorLogging {
     override def receive: Receive = identify
 
     private def identify: Receive = {
-        case ActorIdentity(path, Some(master)) => {
+        case ActorIdentity(`path`, Some(master)) => {
             context.setReceiveTimeout(Duration.Undefined)
             log.info("switching to active state")
             context.become(active(master))
@@ -52,7 +52,6 @@ class MasterLookupProxy(path: String) extends Actor with ActorLogging {
             context.setReceiveTimeout(timeout)
             sendIdentifyRequest
         }
-        case ActorIdentity()
         case message: Any => master forward message
     }
 }

@@ -4,7 +4,9 @@ object Device extends Enumeration {
     val ios, android = Value
 }
 
-case class Id(tenant: String, user: String)
+case class Id(tenant: String, user: String) {
+    override def toString() = "%s-%s".format(tenant, user)
+}
 case class Certificate(device: Device.Value, certificate: String)
 case class Token (device: Device.Value, token: String)
 

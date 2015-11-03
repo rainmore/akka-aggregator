@@ -2,19 +2,18 @@ package net.rainmore.aggregator
 
 import akka.actor.{Terminated, ReceiveTimeout, ActorLogging, Actor, ActorRef, Props}
 import net.rainmore.{Notification, Id, Sqs}
-import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
 
 object JobWorker {
     def props = Props(new JobWorker)
 
     case class Work(master: ActorRef)
-    case class Task(messages: Set[Sqs], master: ActorRef)
+    case class Task(messages: List[Sqs], master: ActorRef)
     case object WorkLoadDepleted
 }
 
 class JobWorker extends Actor with ActorLogging {
-    import JobMaster._
     import JobWorker._
     import context._
 
@@ -26,8 +25,8 @@ class JobWorker extends Actor with ActorLogging {
         case Work(master) =>
             become(enlisted(master))
 
-            master ! Enlist(self)
-            master ! NextTask
+            master ! JobMaster.Enlist(self)
+            master ! JobMaster.NextTask
             watch(master)
 
             setReceiveTimeout(30 seconds)
@@ -35,13 +34,13 @@ class JobWorker extends Actor with ActorLogging {
 
     def enlisted(master: ActorRef): Receive = {
         case ReceiveTimeout =>
-            master ! NextTask
+            master ! JobMaster.NextTask
 
         case Task(messages, master) =>
             val countMap = processTask(messages)
             processed = processed + 1
-            master ! TaskResult(countMap)
-            master ! NextTask
+            master ! JobMaster.TaskResult(countMap)
+            master ! JobMaster.NextTask
 
         case WorkLoadDepleted =>
             setReceiveTimeout(Duration.Undefined)
@@ -59,14 +58,9 @@ class JobWorker extends Actor with ActorLogging {
         case _ => log.error("I'm retired.")
     }
 
-    def processTask(messages: Set[Sqs]): Map[Id, Vector[Notification]] = {
-        val result = Map.empty[Id, Vector[Notification]]
-        messages.foreach(sqs => {
-            if (!result.contains(sqs.id)) {
-                result + (sqs.id -> Vector[Notification]())
-            }
-            result.get(sqs.id).get :+ (sqs.toNotification)
-        })
-        result
+    def processTask(messages: List[Sqs]): Map[Id, ListBuffer[Notification]] = {
+        messages.foldLeft(Map.empty[Id, ListBuffer[Notification]]){(map, sqs) =>
+            map + (sqs.id -> (map.getOrElse(sqs.id, ListBuffer[Notification]()) += sqs.toNotification))
+        }
     }
 }
