@@ -113,6 +113,7 @@ with CreateWorkerRouter {
 
 trait CreateWorkerRouter { this: Actor =>
     def createWorkerRouter: ActorRef = {
+        // TODO to replace this with resizable RoundRobinPool or local BroadcastPool
         context.actorOf(
             ClusterRouterPool(BroadcastPool(10), ClusterRouterPoolSettings(
                 totalInstances = 100, maxInstancesPerNode = 20,

@@ -6,6 +6,9 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
 
 object JobWorker {
+
+    val name = "aggregator-worker"
+
     def props = Props(new JobWorker)
 
     case class Work(master: ActorRef)

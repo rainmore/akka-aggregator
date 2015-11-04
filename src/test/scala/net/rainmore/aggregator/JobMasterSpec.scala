@@ -1,8 +1,8 @@
 package net.rainmore.aggregator
 
-import net.rainmore.UnitSpec
+import net.rainmore.ActorSpec
 
-class JobMasterSpec extends UnitSpec {
+class JobMasterSpec extends ActorSpec {
 
     describe("JobMaster") {
 
