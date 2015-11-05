@@ -3,9 +3,8 @@ package net.rainmore.aggregator
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
-import akka.actor.{ActorContext, Terminated, SupervisorStrategy, ActorLogging, Actor, ActorRef, Props}
-import net.rainmore.cluster.JobReceptionist.WordCount
-import net.rainmore.{Notification, Sqs, Message, Id}
+import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, Props, SupervisorStrategy, Terminated}
+import net.rainmore.{Recipient, Notification}
 
 import scala.collection.mutable.ListBuffer
 
@@ -14,15 +13,15 @@ object JobReceptionist {
     def props = Props(new JobReceptionist)
     def name = "receptionist"
 
-    case class JobRequest(name: String, messages: List[Sqs])
+    case class JobRequest(name: String, messages: List[Notification])
 
     sealed trait Response
-    case class JobSuccess(name: String, map: Map[Id, ListBuffer[Notification]]) extends Response
+    case class JobSuccess(name: String, map: Map[Recipient, ListBuffer[Notification]]) extends Response
     case class JobFailure(name: String) extends Response
 
-    case class Aggregate(name: String, map: Map[Id, ListBuffer[Notification]])
+    case class Aggregate(name: String, map: Map[Recipient, ListBuffer[Notification]])
 
-    case class Job(name: String, messages: List[Sqs], respondTo: ActorRef, jobMaster: ActorRef)
+    case class Job(name: String, messages: List[Notification], respondTo: ActorRef, jobMaster: ActorRef)
 }
 
 class JobReceptionist extends Actor with ActorLogging with CreateMaster {

@@ -4,8 +4,8 @@ import akka.cluster.{MemberStatus, Cluster}
 import akka.cluster.ClusterEvent._
 import akka.actor.Actor.Receive
 import akka.actor.{ActorLogging, Actor}
-
 class ClusterListener extends Actor with ActorLogging {
+
 
     val cluster = Cluster(context.system)
     cluster.subscribe(self, classOf[ClusterDomainEvent])
@@ -25,6 +25,7 @@ class ClusterListener extends Actor with ActorLogging {
         case MemberUp(member) =>
             log.info(s"$member UP.")
         case MemberExited(member)=>
+            member.isOlderThan()
             log.info(s"$member EXITED.")
         case MemberRemoved(member, previousState)=>
             if(previousState == MemberStatus.Exiting) {

@@ -3,7 +3,7 @@ package net.rainmore.aggregator
 import akka.actor.{Actor, ActorContext, ActorRef, Props}
 import akka.routing.BroadcastPool
 import akka.testkit.{ImplicitSender, TestActorRef}
-import net.rainmore.{Notification, Id, Sqs, ActorSpec}
+import net.rainmore.{Notification1, Recipient, Notification$, ActorSpec}
 import net.rainmore.aggregator.JobReceptionist.{JobSuccess, JobRequest}
 import net.rainmore.generators.{Common, SqsGenerator}
 
@@ -31,9 +31,9 @@ class JobReceptionistSpec extends ActorSpec with ImplicitSender {
         }
     }
 
-    private def generateResult(messages: List[Sqs]): Map[Id, ListBuffer[Notification]] = {
-        messages.foldLeft(Map[Id, ListBuffer[Notification]]()){(map, sqs) =>
-            map + (sqs.id -> (map.getOrElse(sqs.id, ListBuffer[Notification]()) += sqs.toNotification))
+    private def generateResult(messages: List[Notification]): Map[Recipient, ListBuffer[Notification1]] = {
+        messages.foldLeft(Map[Recipient, ListBuffer[Notification1]]()){(map, sqs) =>
+            map + (sqs.id -> (map.getOrElse(sqs.id, ListBuffer[Notification1]()) += sqs.toNotification))
         }
     }
 }

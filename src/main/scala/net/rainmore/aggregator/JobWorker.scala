@@ -1,7 +1,8 @@
 package net.rainmore.aggregator
 
-import akka.actor.{Terminated, ReceiveTimeout, ActorLogging, Actor, ActorRef, Props}
-import net.rainmore.{Notification, Id, Sqs}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, ReceiveTimeout, Terminated}
+import net.rainmore.{Recipient, Notification}
+
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
 
@@ -12,7 +13,7 @@ object JobWorker {
     def props = Props(new JobWorker)
 
     case class Work(master: ActorRef)
-    case class Task(messages: List[Sqs], master: ActorRef)
+    case class Task(messages: List[Notification], master: ActorRef)
     case object WorkLoadDepleted
 }
 
@@ -61,9 +62,9 @@ class JobWorker extends Actor with ActorLogging {
         case _ => log.error("I'm retired.")
     }
 
-    def processTask(messages: List[Sqs]): Map[Id, ListBuffer[Notification]] = {
-        messages.foldLeft(Map.empty[Id, ListBuffer[Notification]]){(map, sqs) =>
-            map + (sqs.id -> (map.getOrElse(sqs.id, ListBuffer[Notification]()) += sqs.toNotification))
+    def processTask(messages: List[Notification]): Map[Recipient, ListBuffer[Notification]] = {
+        messages.foldLeft(Map.empty[Recipient, ListBuffer[Notification]]){(map, notification) =>
+            map + (notification.recipient -> (map.getOrElse(notification.recipient, ListBuffer[Notification]()) += notification))
         }
     }
 }

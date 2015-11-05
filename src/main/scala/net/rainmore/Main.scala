@@ -51,7 +51,9 @@ object Main extends App with LazyLogging {
         import scala.concurrent.ExecutionContext.Implicits.global
         logger.info("Start member")
 
-        val name = classOf[JobReceptionist].getSimpleName
+        val name = JobReceptionist.name
+
+        //TODO to check if there were more than one
         system.actorSelection(s"/user/$name").resolveOne(5.seconds).onComplete {
             case Success(actor) => {
                 logger.info("Master node exists")

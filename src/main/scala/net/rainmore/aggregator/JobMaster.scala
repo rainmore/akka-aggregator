@@ -1,9 +1,9 @@
 package net.rainmore.aggregator
 
-import akka.actor.{Cancellable, ReceiveTimeout, Terminated, SupervisorStrategy, ActorLogging, Actor, ActorRef, Props}
-import akka.cluster.routing.{ClusterRouterPoolSettings, ClusterRouterPool}
-import akka.routing.BroadcastPool
-import net.rainmore.{Notification, Id, Sqs}
+import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, ReceiveTimeout, SupervisorStrategy, Terminated}
+import akka.routing.{DefaultResizer, RoundRobinPool}
+import net.rainmore.{Recipient, Notification, Notification1}
+
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
 
@@ -13,11 +13,11 @@ object JobMaster {
     private final val sqsGroupSize = 10
     private final val workerTimeOut = 60 seconds
 
-    case class StartJob(name: String, messages: List[Sqs])
+    case class StartJob(name: String, messages: List[Notification])
     case class Enlist(worker: ActorRef)
 
     case object NextTask
-    case class TaskResult(map: Map[Id, ListBuffer[Notification]])
+    case class TaskResult(map: Map[Recipient, ListBuffer[Notification]])
 
     case object Start
     case object MergeResults
@@ -26,12 +26,12 @@ object JobMaster {
 class JobMaster extends Actor
 with ActorLogging
 with CreateWorkerRouter {
-    import JobReceptionist.Aggregate
     import JobMaster._
+    import JobReceptionist.Aggregate
     import context._
 
-    var sqsParts = Vector[List[Sqs]]()
-    var intermediateResult = Vector[Map[Id, ListBuffer[Notification]]]()
+    var sqsParts = Vector[List[Notification]]()
+    var intermediateResult = Vector[Map[Recipient, ListBuffer[Notification]]]()
     var workGiven = 0
     var workReceived = 0
     var workers = Set[ActorRef]()
@@ -99,11 +99,11 @@ with CreateWorkerRouter {
             log.info(s"Job $jobName is finishing. Worker ${worker.path.name} is stopped.")
     }
 
-    def merge(): Map[Id, ListBuffer[Notification]] = {
-        intermediateResult.foldLeft(Map[Id, ListBuffer[Notification]]()) {
+    def merge(): Map[Recipient, ListBuffer[Notification1]] = {
+        intermediateResult.foldLeft(Map[Recipient, ListBuffer[Notification1]]()) {
             (start, current) =>
                 start.map {
-                    case (id: Id, buffer: ListBuffer[Notification]) =>
+                    case (id: Recipient, buffer: ListBuffer[Notification1]) =>
                         current.get(id).map(list => ( id -> (buffer ++= list))).getOrElse(id -> buffer)
                 } ++ (current -- start.keys)
         }
@@ -112,12 +112,20 @@ with CreateWorkerRouter {
 
 
 trait CreateWorkerRouter { this: Actor =>
+    val routerLowbound = 5
+    val routerUpperbound = 20
+
+
     def createWorkerRouter: ActorRef = {
-        // TODO to replace this with resizable RoundRobinPool or local BroadcastPool
-        context.actorOf(
-            ClusterRouterPool(BroadcastPool(10), ClusterRouterPoolSettings(
-                totalInstances = 100, maxInstancesPerNode = 20,
-                allowLocalRoutees = false, useRole = None)).props(Props[JobWorker]),
-            name = "aggregator-router")
+
+        val router = new RoundRobinPool(routerLowbound).withResizer(new DefaultResizer(routerLowbound, routerUpperbound))
+        context.actorOf(JobWorker.props.withRouter(router), "aggregator-router")
+//
+//
+//        context.actorOf(
+//            ClusterRouterPool(BroadcastPool(10), ClusterRouterPoolSettings(
+//                totalInstances = 100, maxInstancesPerNode = 20,
+//                allowLocalRoutees = false, useRole = None)).props(Props[JobWorker]),
+//            name = "aggregator-router")
     }
 }
