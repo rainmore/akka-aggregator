@@ -3,6 +3,7 @@ package net.rainmore.cluster
 import akka.actor.Actor.Receive
 import akka.actor._
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 object MasterLookupProxy {
     private final val timeout = 5 seconds

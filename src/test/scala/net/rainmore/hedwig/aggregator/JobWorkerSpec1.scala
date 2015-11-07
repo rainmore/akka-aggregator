@@ -1,11 +1,10 @@
-package net.rainmore.aggregator
+package net.rainmore.hedwig.aggregator
 
 import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestKit}
 import com.typesafe.config.ConfigFactory
-import net.rainmore.aggregator.JobWorker.Work
-import net.rainmore.generators.{SqsGenerator, Common}
-import net.rainmore.{Notification, Notification1, Notification$, Recipient, UnitSpec}
+import net.rainmore.hedwig._
+import net.rainmore.hedwig.aggregator.JobWorker.Work
 
 import scala.collection.mutable.ListBuffer
 import scala.util.Random

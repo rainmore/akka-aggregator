@@ -1,6 +1,6 @@
-package net.rainmore
+package net.rainmore.hedwig
 
-import scala.collection.mutable.{ListBuffer, ArrayBuffer}
+import scala.collection.mutable.ListBuffer
 
 object DeviceType extends Enumeration {
     val ios, android = Value
@@ -65,4 +65,6 @@ object PushMessage {
 }
 
 case class PushMessage(title: String, body: String, ids: Set[Int])
+
+case class PushNotification(pushMessage: PushMessage, certificates: Set[Certificate], tokens: Set[Token])
 

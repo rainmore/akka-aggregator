@@ -1,11 +1,10 @@
-package net.rainmore.aggregator
+package net.rainmore.hedwig.aggregator
 
 import akka.actor.{Actor, ActorContext, ActorRef, Props}
 import akka.routing.BroadcastPool
 import akka.testkit.{ImplicitSender, TestActorRef}
-import net.rainmore.{Notification1, Recipient, Notification$, ActorSpec}
-import net.rainmore.aggregator.JobReceptionist.{JobSuccess, JobRequest}
-import net.rainmore.generators.{Common, SqsGenerator}
+import net.rainmore.hedwig._
+import net.rainmore.hedwig.aggregator.JobReceptionist.{JobSuccess, JobRequest}
 
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
@@ -31,9 +30,9 @@ class JobReceptionistSpec extends ActorSpec with ImplicitSender {
         }
     }
 
-    private def generateResult(messages: List[Notification]): Map[Recipient, ListBuffer[Notification1]] = {
-        messages.foldLeft(Map[Recipient, ListBuffer[Notification1]]()){(map, sqs) =>
-            map + (sqs.id -> (map.getOrElse(sqs.id, ListBuffer[Notification1]()) += sqs.toNotification))
+    private def generateResult(messages: List[Notification]): Map[Recipient, ListBuffer[Notification]] = {
+        messages.foldLeft(Map[Recipient, ListBuffer[Notification]]()){(map, sqs) =>
+            map + (sqs.recipient -> (map.getOrElse(sqs.recipient, ListBuffer[Notification]()) += sqs))
         }
     }
 }

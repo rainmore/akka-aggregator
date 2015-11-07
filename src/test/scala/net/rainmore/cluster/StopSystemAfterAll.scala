@@ -1,10 +1,10 @@
-package net.rainmore
+package net.rainmore.cluster
 
-import akka.actor.Actor.Receive
-import akka.actor.{Props, ActorRef, Actor, ActorSystem}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestKit}
 import com.typesafe.scalalogging.LazyLogging
-import org.scalatest.{MustMatchers, WordSpecLike, Suite, BeforeAndAfterAll}
+import net.rainmore.cluster.SilentActor.{GetState, SilentMessage}
+import org.scalatest.{BeforeAndAfterAll, MustMatchers, Suite, WordSpecLike}
 
 trait StopSystemAfterAll extends BeforeAndAfterAll { this: TestKit with Suite =>
 
@@ -39,8 +39,6 @@ class SilentActor01Test extends TestKit(ActorSystem("testsystem"))
 with WordSpecLike
 with MustMatchers
 with StopSystemAfterAll with LazyLogging {
-
-    import net.rainmore.SilentActor._
 
     "A Silent Actor" must {
         "change state when it receives a message, single threaded" in {

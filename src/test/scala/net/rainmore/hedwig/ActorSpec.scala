@@ -1,7 +1,7 @@
-package net.rainmore
+package net.rainmore.hedwig
 
 import akka.actor.ActorSystem
-import akka.testkit.{ImplicitSender, DefaultTimeout, TestKit}
+import akka.testkit.{DefaultTimeout, ImplicitSender, TestKit}
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest._
 

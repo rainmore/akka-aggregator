@@ -1,11 +1,12 @@
-package net.rainmore.aggregator
+package net.rainmore.hedwig.aggregator
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, ReceiveTimeout, SupervisorStrategy, Terminated}
 import akka.routing.{DefaultResizer, RoundRobinPool}
-import net.rainmore.{Recipient, Notification, Notification1}
+import net.rainmore.hedwig.{Notification, Recipient}
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 object JobMaster {
     def props = Props(new JobMaster)
@@ -99,11 +100,11 @@ with CreateWorkerRouter {
             log.info(s"Job $jobName is finishing. Worker ${worker.path.name} is stopped.")
     }
 
-    def merge(): Map[Recipient, ListBuffer[Notification1]] = {
-        intermediateResult.foldLeft(Map[Recipient, ListBuffer[Notification1]]()) {
+    def merge(): Map[Recipient, ListBuffer[Notification]] = {
+        intermediateResult.foldLeft(Map[Recipient, ListBuffer[Notification]]()) {
             (start, current) =>
                 start.map {
-                    case (id: Recipient, buffer: ListBuffer[Notification1]) =>
+                    case (id: Recipient, buffer: ListBuffer[Notification]) =>
                         current.get(id).map(list => ( id -> (buffer ++= list))).getOrElse(id -> buffer)
                 } ++ (current -- start.keys)
         }

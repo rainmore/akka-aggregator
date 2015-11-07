@@ -1,10 +1,10 @@
-package net.rainmore.aggregator
+package net.rainmore.hedwig.aggregator
 
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
 import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, Props, SupervisorStrategy, Terminated}
-import net.rainmore.{Recipient, Notification}
+import net.rainmore.hedwig.{Notification, Recipient}
 
 import scala.collection.mutable.ListBuffer
 

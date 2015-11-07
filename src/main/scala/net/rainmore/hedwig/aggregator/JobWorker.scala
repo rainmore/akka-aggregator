@@ -1,10 +1,11 @@
-package net.rainmore.aggregator
+package net.rainmore.hedwig.aggregator
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, ReceiveTimeout, Terminated}
-import net.rainmore.{Recipient, Notification}
+import net.rainmore.hedwig.{Notification, Recipient}
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 object JobWorker {
 

@@ -1,6 +1,5 @@
-package net.rainmore.generators
+package net.rainmore.hedwig
 
-import net.rainmore._
 import org.jfairy.Fairy
 
 import scala.collection.mutable.ListBuffer
@@ -22,7 +21,7 @@ object Common {
 }
 
 object SqsGenerator {
-    import  Common._
+    import Common._
 
     private val sqsSize = 10
     private val titleLength = 2
@@ -54,11 +53,12 @@ object SqsGenerator {
         }
     }
 
-    def generateOne(id: Recipient): Notification = {
+    def generateOne(recipient: Recipient): Notification = {
+        val id: Int = Random.nextInt(1000000000)
         val title: String = fairy.textProducer().word(titleLength)
         val body: String = fairy.textProducer().word(bodyLength)
         val device: DeviceType.Value = Random.shuffle(DeviceType.values.toSet).head
-        new Notification(id, title, body, Set(generateCertificate(device)), Set(generateToken(device)))
+        new Notification(recipient, new Message(id, title, body), Set(generateCertificate(device)), Set(generateToken(device)))
     }
 
     def generateCertificate(device: DeviceType.Value): Certificate = {
@@ -71,9 +71,9 @@ object SqsGenerator {
         new Token(device, c)
     }
 
-    def generateResult(messages: List[Notification]): Map[Recipient, ListBuffer[Notification1]] = {
-        messages.foldLeft(Map[Recipient, ListBuffer[Notification1]]()){(map, sqs) =>
-            map + (sqs.recipient -> (map.getOrElse(sqs.recipient, ListBuffer[Notification1]()) += sqs.toNotification))
-        }
+    def generateResult(messages: List[Notification]): Map[Recipient, ListBuffer[Notification]] = {
+        val map = Map[Recipient, ListBuffer[Notification]]()
+        messages.foreach(n => map +  (n.recipient -> (map.getOrElse(n.recipient, ListBuffer[Notification]()) += n)))
+        map
     }
 }

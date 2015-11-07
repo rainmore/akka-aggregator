@@ -1,6 +1,6 @@
-package net.rainmore.aggregator
+package net.rainmore.hedwig.aggregator
 
-import net.rainmore.ActorSpec
+import net.rainmore.hedwig.ActorSpec
 
 class JobMasterSpec extends ActorSpec {
 
