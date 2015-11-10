@@ -66,3 +66,5 @@ object PushMessage {
 
 case class PushMessage(title: String, body: String, ids: Set[Int])
 
+case class PushMessageNotification(recipient: Recipient, message: PushMessage, certificates: Set[Certificate], tokens: Set[Token])
+
